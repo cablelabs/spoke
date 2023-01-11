@@ -1,0 +1,319 @@
+<html>
+<head>
+<title>SPoKE Poll Edit</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="css/spoke.css">
+<script type="text/javascript" src="js/spoke.js"></script>
+<script type="text/javascript" src="js/html5-qrcode.min.js"></script>
+<script type="text/javascript">
+  function getAccount() {
+    var params = new URLSearchParams(window.location.search)
+    account = params.get("account")
+    console.log("Got account " + account);
+    return account;
+  }
+  var poll_db;
+  function init() {
+    document.getElementById("account").innerHTML = "Account " + getAccount();
+    poll_db = new PollDB(getAccount()); 
+    updatePolls();
+    updateStatus();
+    var html5QrcodeScanner = new Html5QrcodeScanner(
+	"reader", { fps: 10, qrbox: 250 });
+    html5QrcodeScanner.render(onScanSuccess);
+  }
+  function createPoll() {
+    var title = document.getElementById("title").value;
+    var description = document.getElementById("description").value;
+    var email = document.getElementById("email").value;
+    var questions = [];
+    let idx = 1;
+    var question = document.getElementById("question" +idx);
+    var datatype = document.getElementById("datatype" +idx);
+    while (question != null) {
+        questions.push({"question": question.value, "datatype": datatype.value});
+        idx += 1;
+        question = document.getElementById("question" +idx);
+        datatype = document.getElementById("datatype" +idx);
+    }
+    poll_db.create_poll(title, description, email, questions)
+        .then(data => updatePolls(data));
+  }
+  function updatePolls(data) {
+    poll_db.list_polls()
+        .then(data => handlePolls(data));
+  }
+  function showPoll(poll_id) {
+    current_poll_id = poll_id;
+    poll_db.get_poll(poll_id)
+        .then(data => handleShowPoll(data));
+  }
+  var spoke;
+  function handleShowPoll(data) {
+    var title = data["poll"]["title"];
+    var description = data["poll"]["description"];
+    var email = data["poll"]["email"];
+    selfRegister(data["poll_id"]);
+    document.getElementById("poll_details_id").innerHTML = data["poll_id"];
+    document.getElementById("poll_details_title").innerHTML = title;
+    document.getElementById("poll_details_description").innerHTML = description;
+    document.getElementById("poll_details_email").innerHTML = email;
+    var questionsHtml = "";
+    for (var i = 0; i < data["poll"]["questions"].length; i++) {
+        var question = data["poll"]["questions"][i]["question"];
+        questionsHtml += question + "<br>";
+    }
+    document.getElementById("poll_details_question").innerHTML = questionsHtml;
+
+    body = "You are invited to the poll " + title + " at " + window.location.href.split("?account")[0] + "poll/" + data["poll_id"];
+
+    document.getElementById("poll_details_invite_link").innerHTML = 
+         '[ <a href="mailto:?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body) +
+         '">Invite</a> | ';
+    document.getElementById("poll_details_copy_link").innerHTML = 
+         "<a href='javascript:copyPoll(\"" + data["poll_id"] + "\")'"+
+         '">Copy Poll Link</a> | ';
+    document.getElementById("poll_details_start_link").innerHTML = 
+         "<a href='/poll/" + data["poll_id"] + "?init=true' target='_blank'>Start Poll</a> | ";
+    document.getElementById("poll_details_register_link").innerHTML = 
+         "<a href='javascript:addRegistration(\"" + data["poll_id"] + "\")'"+
+         '">Register User</a> ]';
+    document.getElementById("poll_details_qr").src = "/qr/" + data["poll_id"];
+    spoke = new Spoke(data["poll_id"]);
+    spoke.getRegistrations().then(data => showRegistrations(data));
+  }
+  function copyPoll(poll_id) {
+    let url =  window.location.href.split("?account")[0] + "poll/" + poll_id;
+    navigator.clipboard.writeText(url);
+    console.log("Copied poll url: " + url);
+  }
+
+  function removeRegistration(idx) {
+    let pub_key = registrations[idx]["pub_key"];
+    poll_db.remove_registration(pub_key,current_poll_id).then(data => showPoll(current_poll_id));
+  }
+
+  function removePoll(poll_id) {
+    poll_db.remove_poll(poll_id).then(data => updatePolls(data));
+  }
+
+
+  var registrations = {};
+  function showRegistrations(data) {
+    let total = Object.keys(data).length;
+    registrations = data;
+    let html = "";
+    for (let i = 1; i <= total; i++) {
+       let alias = window.localStorage.getItem(data[i]["pub_key"]);
+       if (alias == null) {
+         alias = "";
+       }
+       myPublicKey = localStorage.getItem("spokePublicKey");
+       if (myPublicKey == data[i]["pub_key"]) {
+         alias = "(you)";
+       }
+       html += "<button onclick=\"removeRegistration(" + i + ")\"> X </button>&nbsp;&nbsp;&nbsp;&nbsp;<span id=\"reg" + i + "\">" + i + "&nbsp;&nbsp;" + alias + "</span><br>"; 
+    }  
+    document.getElementById("poll_details_registrations").innerHTML = html;
+  }
+  function addRegistration(poll_id) {
+     document.getElementById("poll_details_register_content").setAttribute("name", poll_id);
+     document.getElementById("poll_details_register_content").value = "";
+     document.getElementById("poll_details_register_alias").value = "";
+
+     document.getElementById("register").removeAttribute("hidden");
+     updateNicknames();
+  }
+  function updateNicknames() {
+    let nick = document.getElementById("poll_details_nickname_select");
+    nick.innerHTML = "";
+    nick.options[nick.options.length] = new Option("","");
+    for ( var i = 0, len = localStorage.length; i < len; ++i ) {
+      if (localStorage.key(i).startsWith("-----BEGIN CERTIFICATE")) {		
+        let pub = localStorage.key(i);
+        let nickname = localStorage.getItem(pub);
+	nick.options[nick.options.length] = new Option(nickname,spoke.encodePub(pub));
+      }
+    }
+    nick.onchange = nickChanged;
+  }
+  function nickChanged(event) {
+    let nick = document.getElementById("poll_details_nickname_select");
+    let value = nick.value;
+    let text = nick.options[nick.selectedIndex].text;
+    console.log(value);
+    console.log(text);
+    document.getElementById("poll_details_register_content").value = value;
+    document.getElementById("poll_details_register_alias").value = text;
+  }
+
+  var current_poll_id;
+  function selfRegister(poll_id) {
+    myPublicKey = localStorage.getItem("spokePublicKey");
+    spoke = new Spoke(poll_id); 
+    if (myPublicKey != null) {
+      console.log("Got pub key " + myPublicKey);
+      spoke.register(myPublicKey).then(index => handleRegistrationComplete(index));
+    } else {
+	   ok = confirm("Self registering failed. Generate a new PKI pair?");
+	   if (ok) {
+		   window.open('/poll/close',"CreateKey","popup");
+	   }
+    }
+  }
+  function completeAddRegistration() {
+     let poll_id = document.getElementById("poll_details_register_content").getAttribute("name");
+     document.getElementById("register").setAttribute("hidden","");
+     let token = document.getElementById("poll_details_register_content").value;
+     if (token == null || token == "") {
+        return;
+     }
+     let alias = document.getElementById("poll_details_register_alias").value;
+     if (alias == null || alias == "") {
+        return;
+     }
+     spoke = new Spoke(poll_id); 
+     let pubKey = spoke.decodeKey(token);
+     window.localStorage.setItem(pubKey,alias);
+     spoke.register(pubKey).then(index => handleRegistrationComplete(index));
+  }
+
+  function updateStatus() {
+    if (spoke != null) {
+      spoke.getStatus().then(data => handleStatus(data));
+    }
+    setTimeout(updateStatus,5000);
+  }
+  
+  function addQuestion() {
+    var table = document.getElementById('polltable');
+    var rowCount = table.rows.length;
+    var row = table.insertRow(rowCount);
+    var cell = row.insertCell(0);
+    cell.innerHTML = "Question " + (rowCount-2) +  ":";
+    cell = row.insertCell(1);
+    cell.innerHTML = "<input id=\"question" + (rowCount-2) + "\" type=\"text\"></input>"
+    cell = row.insertCell(2);
+    cell.innerHTML = "<select id=\"datatype" + (rowCount-2) + "\"><option value=\"float\">Float</option><option value=\"int\">Integer</option><option value=\"boolean\">Boolean</option><option value=\"likert\">Likert</option></select>"
+  }
+  function removeQuestion() {
+    var table = document.getElementById('polltable');
+    var rowCount = table.rows.length;
+    var row = table.deleteRow(rowCount-1);
+  }
+
+  function handleStatus(data) {
+       let total = Object.keys(registrations).length;
+       for (var i = 1; i <= total; i++) {
+          let nick = window.localStorage.getItem(registrations[i]["pub_key"]);
+          let posted = false;
+          let failed = false;
+          if ("posted" in data) {
+            posted = ("" + i) in data["posted"];
+            failed = ("" + i) in data["failed"];
+          }
+          is_online = false;
+          if ("last_seen" in data 
+                && (("" + i) in data["last_seen"])
+                && ((new Date().getTime()/1000 - data["last_seen"][i]) < 10)) {
+            is_online = true;
+          }
+
+
+          if (posted) {
+            document.getElementById("reg" + i).classList.add("posted");
+          } else if (failed) {
+            document.getElementById("reg" + i).classList.add("failed");
+          } else {
+            document.getElementById("reg" + i).classList.remove("failed");
+            document.getElementById("reg" + i).classList.remove("posted");
+          } 
+
+          if (is_online) {
+            document.getElementById("reg" + i).classList.add("online");
+          } else {
+            document.getElementById("reg" + i).classList.remove("online");
+          }
+       }
+  }
+
+
+  function handleRegistrationComplete(index) {
+       spoke.getRegistrations().then(data => showRegistrations(data));
+  }
+  function handlePolls(data) {
+    console.log(data);
+    var html = "";
+    for (var i=0; i < data["polls"].length; i++) {
+       html += "<button onclick='javascript:removePoll(\"" + data["polls"][i]["poll_id"] + "\")'> X </button>";
+       html += " <a href='javascript:showPoll(\"" + data["polls"][i]["poll_id"] + "\")'>" + data["polls"][i]["poll"]["title"] + "</a><br>"
+    }
+    document.getElementById("polls").innerHTML = html;
+  }
+
+  function onScanSuccess(decodedText, decodedResult) {
+    // Handle on success condition with the decoded text or result.
+    console.log(`Scan result: ${decodedText}`, decodedResult);
+    spoke.getPubKeyByUuid(decodedText).then(data => document.getElementById("poll_details_register_content").value = data); 
+  }
+
+</script>
+</head>
+<body onload="init()">
+<div class="spoke-theme">
+<h1 id="account">Account </h1> 
+<div class="section"><span>-</span>Create Poll</div> 
+<div class="inner-wrap">
+  <table id="polltable">
+  <tr><td>Title:</td><td><input id="title" type="text"></input></td><td></td></tr>
+  <tr><td>Email:</td><td><input id="email" type="text"></input></td><td></td></tr>
+  <tr><td>Description:</td><td><input id="description" type="text"></input></td><td></td></tr>
+  <tr><td>Question 1:</td><td><input id="question1" type="text"></input></td><td><select id="datatype1">
+  <option value="float">Float</option>
+  <option value="int">Integer</option>
+  <option value="boolean">Boolean</option>
+  <option value="likert">Likert</option>
+  </select>
+  </td></tr>
+  </table>
+  <div  style="float: left;" ><button onclick="addQuestion()">Add Question</button>
+  <button onclick="removeQuestion()">Remove Question</button>
+  <button onclick="createPoll()">Create Poll</button></div><br>
+</div>
+<div class="section"><span>-</span>Polls</div> 
+<div class="inner-wrap">
+  <div id="polls"></div><br>
+</div>
+<div class="section"><span>-</span>Preview</div> 
+<div class="inner-wrap">
+  <h1 id="poll_details_title"></h1>
+  <div id="poll_details_id"></div>
+  <div id="poll_details_description"></div>
+  <div id="poll_details_email"></div>
+  <div id="poll_details_question"></div>
+  <span id="poll_details_invite_link"></span>
+  <span id="poll_details_copy_link"></span>
+  <span id="poll_details_start_link"></span>
+  <span id="poll_details_register_link"></span>
+  <div id="poll_details_image"><img id="poll_details_qr" src=""></img></div>
+</div>
+  <div id="register" hidden="">
+    <table>
+    <tr><td><select id="poll_details_nickname_select"></td><td></td></tr>
+    <tr><td>Public Key:</td><td><textarea id="poll_details_register_content" rows="4" cols="50"></textarea></td></tr>
+    <tr><td>Nickname:</td><td><input id="poll_details_register_alias" type="text"></input></td></tr>
+    </table>
+    <div style="width: 500px" id="reader"></div>
+    <button style="float: left;" onclick="completeAddRegistration()">Add</button>
+  </div>
+<br>
+<br>
+<div class="section"><span>-</span>Participants</div> 
+<div class="inner-wrap">
+  <table>
+  <tr><th></th><th></th></tr>
+  <tr><td><div id="poll_details_registrations"></div></td><td><div id="status"></div></td></tr>
+  </table>
+<div class="inner-wrap">
+</div>
+</body>

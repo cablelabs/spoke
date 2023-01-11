@@ -1,0 +1,347 @@
+<html>
+<head>
+<title>SPoKE</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../css/spoke.css">
+<style>
+    #snackbar {
+      visibility: hidden;
+      min-width: 250px;
+      margin-left: 10px;
+      background-color: #333;
+      color: #fff;
+      text-align: center;
+      border-radius: 2px;
+      padding: 16px;
+      position: fixed;
+      z-index: 1;
+      left: 0%;
+      top: 600px;
+      font-size: 25px;
+    }
+
+    #snackbar.show {
+      visibility: visible;
+      -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+      animation: fadein 0.5s, fadeout 0.5s 2.5s;
+    }
+
+    @-webkit-keyframes fadein {
+      from {top: 0; opacity: 0;}
+      to {top: 600px; opacity: 1;}
+    }
+
+    @keyframes fadein {
+      from {top: 0; opacity: 0;}
+      to {top: 600px; opacity: 1;}
+    }
+
+    button {
+            text-align: center;
+            font-size: 25px;
+    }
+    select {
+            text-align: center;
+            font-size: 25px;
+    }
+    table, th, td {
+        padding: 10px;
+        font-size: 25px;
+     }
+     .logger {
+        overflow-y: scroll;
+        height: 100px;
+        width: 100%;
+        resize: none; /* Remove this if you want the user to resize the textarea */
+        position: fixed;
+        bottom: 0;
+        margin-left: 0px;
+        color: red;
+    }
+  .content {
+    margin: 5;
+    padding: 5;
+    font-size: 25px;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-size: 25px;
+  }
+</style>
+<script type="text/javascript" src="../js/pki.js"></script>
+<script type="text/javascript" src="../js/pass.js"></script>
+<script type="text/javascript" src="../js/spoke.js"></script>
+<script type="text/javascript" src="../js/qrcode.min.js"></script>
+<script type="text/javascript">
+  function getGroup() {
+    return "__POLL_ID__";
+  }
+
+  function shouldInit() {
+    var params = new URLSearchParams(window.location.search)
+    let initParam = params.get("init")
+    console.log("Got init " + initParam);
+    return initParam == "true" && myIndex == 1;
+  }
+
+
+  function getPoll() {
+    var poll_db = new PollDB("");
+    poll_db.get_poll(getGroup())
+      .then(data => handleShowPoll(data));
+  }
+
+  var numQuestions = 0;
+  function handleShowPoll(data) {
+    var title = data["poll"]["title"];
+    var description = data["poll"]["description"];
+    var email = data["poll"]["email"];
+    var questions = data["poll"]["questions"];
+    document.getElementById("poll_details_title").innerHTML = title;
+    document.getElementById("poll_details_description").innerHTML = description;
+    numQuestions = data["poll"]["questions"].length;
+    for (var i = 0; i < numQuestions; i++) {
+      addQuestion(i+1, data["poll"]["questions"][i]);
+    }
+    var body = spoke.exportKey();
+    document.getElementById("register_link").innerHTML = 
+         '[ <a href="mailto:' + email + '?subject=' + encodeURIComponent("Register for " + title + " [" + data["poll_id"] + "]") + '&body=' + encodeURIComponent(body) +
+         '">Register</a> | ';
+    document.getElementById("copy_link").innerHTML = 
+          "<a href='javascript:copyRegistration(\"" + data["poll_id"] + "\",\"" + title + "\")'"+
+         '">Copy Registration</a> | ';
+    document.getElementById("copy_pubkey").innerHTML = 
+          "<a href='javascript:copyPubkey()'"+
+         '">Copy Public Key</a> ] ';
+     if (shouldInit() && !hasInitiated) {
+      hasInitiated = true;
+      initAggregation();
+    }
+    showQR();
+  }
+
+  function addQuestion(idx,question) {
+    var table = document.getElementById('questionsTable');
+    var rowCount = table.rows.length;
+    var row = table.insertRow(rowCount);
+    var cell = row.insertCell(0);
+    cell.innerHTML = "<span id=\"poll_details_question" + idx + "\">" + question["question"] + "</span>";
+    cell = row.insertCell(1);
+    if (question["datatype"] == "float") {
+       cell.innerHTML = "<input id=\"inputValue" + idx + "\" step=\"0.01\" type=\"number\"></input>" 
+    } else if (question["datatype"] == "int") {
+       cell.innerHTML = "<input id=\"inputValue" + idx + "\" step=\"1\" type=\"number\"></input>" 
+    } else if (question["datatype"] == "boolean") {
+       cell.innerHTML = "<select id=\"inputValue" + idx + "\"><option value=\"1\">Yes</option><option value=\"0\">No</option></select>" 
+    } else if (question["datatype"] == "likert") {
+       cell.innerHTML = "<select id=\"inputValue" + idx + "\"><option value=\"0\">Strongly Disagree</option><option value=\"1\">Disagree</option><option value=\"2\" selected>Neutral</option><option value=\"3\">Agree</option><option value=\"4\">Strongly Agree</option></select>" 
+    }
+    cell = row.insertCell(2);
+    cell.innerHTML = "<span id=\"secret" + idx + "\"></span>";
+    cell = row.insertCell(3);
+    cell.innerHTML = "<span id=\"received" + idx + "\"></span>";
+    cell = row.insertCell(4);
+    cell.innerHTML = "<span id=\"sent" + idx + "\"></span>";
+    cell = row.insertCell(5);
+    cell.innerHTML = "<span id=\"encrypted" + idx + "\"></span>";
+
+    row = table.insertRow(rowCount+1);
+    cell = row.insertCell(0);
+    cell.innerHTML = "Average:";
+    cell = row.insertCell(1);
+    cell.innerHTML = "<span id=\"averageValue" + idx + "\"></span>";
+  }
+
+  function copyPubkey() {
+    navigator.clipboard.writeText(spoke.exportKey());
+    console.log("Copied key: " + spoke.exportKey());
+  }
+
+  var qrcode = null;
+  function showQR() {
+    console.log("Show qr for key: " + spoke.exportKey());
+    if (qrcode == null) {
+      spoke.genPubKeyUuid(spoke.exportKey()).then(data => handleUuid(data));
+    }
+  }
+  function handleUuid(uuid) {
+    console.log("Show qr for uuid: " + uuid);
+    qrcode = new QRCode(document.getElementById("qrcode"), {text:uuid,correctLevel:QRCode.CorrectLevel.L});
+  }
+
+ function copyRegistration(poll_id, title) {
+    let text = "Register for " + poll_id + " " + title + "\n" + spoke.exportKey(); 
+    navigator.clipboard.writeText(text);
+    console.log("Copied poll registration: " + text);
+  }
+
+  function updateTimeToPost() {
+    spoke.getStatus().then(data => gotStatus(data));
+    setTimeout(updateTimeToPost,3000);
+  }
+
+  function gotStatus(data) {
+    if (spoke.index == 0) {
+        return
+    } 
+    if (!("posted" in data)) {
+       return;
+    } 
+    if (("" + spoke.index) in data["posted"]) {
+        document.getElementById("timetopost").innerHTML = ""; 
+        return;
+    }
+
+    if ("" + (spoke.index - 1) in data["posted"] &&
+        !("" + spoke.index in data["posted"])) {
+        const now =  Date.now();
+        let elapsedSec = (Date.now()/1000 - data["posted"][spoke.index-1]);
+        let leftToVote = Math.round(30 - elapsedSec);
+        if (leftToVote < 0) {
+          leftToVote = 0;
+        }
+        document.getElementById("timetopost").innerHTML = "Time to post: " + leftToVote; 
+    }
+  }
+
+  var spoke;
+  var hasInitiated  = false;
+  function init() {
+    var pubkey = localStorage.getItem("spokePublicKey");
+    if (pubkey == null) {
+      document.getElementById("passlabel").innerHTML = "Set new Passphrase:";
+    } else {
+      document.getElementById("passlabel").innerHTML = "Unlock with Passphrase:";
+    }
+    document.getElementById("submitButton").disabled = true;
+    spoke = new Spoke(getGroup());
+    spoke.setStatusCallback(statusUpdate);
+    spoke.initEncryption().then(data => completeInit(data));
+    updateTimeToPost();
+  }
+  function refreshRegistration() {
+    spoke.get_registration().then(data => gotIndex(data));
+  }
+  function completeInit(d) {
+    let myGroup = getGroup();
+    console.log("Got group " + myGroup);
+    if (myGroup == "close") {
+        window.close();
+    }
+    console.log("Getting Registration");
+    spoke.get_registration().then(data => gotIndex(data));
+    console.log("Getting Poll");
+    getPoll();
+  }
+  var myIndex = -1;
+  function gotIndex(index) {
+    myIndex = index;
+    if (index != -1) {
+      document.getElementById("submitButton").disabled = false;
+      document.getElementById("clientID").innerHTML = "Client " + index;
+      document.title = "SPoKE " + index;
+    } else {
+      document.getElementById("submitButton").disabled = true
+      document.getElementById("clientID").innerHTML = "Unregistered Client";
+    } 
+  }
+  function getValues() {
+    let values = [];
+    let zero = shouldInit();
+    for (var i=1; i<=numQuestions; i++) {
+      if (zero) {
+        values.push(0);
+      } else {
+        values.push(Number(document.getElementById("inputValue" + i).value))
+      }
+    }
+    return values;
+  }
+  function initAggregation() {
+    document.getElementById("logger").innerHTML = "";
+    for (var i=1; i<=numQuestions; i++) {
+      document.getElementById("averageValue" + i).innerHTML = "";
+      document.getElementById("secret" + i).innerHTML = "";
+      document.getElementById("sent" + i).innerHTML = "";
+      document.getElementById("received" + i).innerHTML = "";
+      document.getElementById("encrypted" + i).innerHTML = "";
+    }
+    document.getElementById("status").innerHTML = "";
+    if (!shouldInit()) {
+      showMessage("Don't close the browser until an average is obtained");
+    }
+    spoke.startAggregation(getValues(),shouldInit()).then(average => gotAverage(average));
+  }
+  function statusUpdate(update) {
+    console.log("Got update");
+    console.log(update);
+    if (update["eventType"] == "text") {
+      document.getElementById("status").innerHTML = update["status"];
+    } 
+    if (update["eventType"] == "aggregation") {
+      let aggs = update["aggregate"];
+      let aggregationType = update["aggregationType"];
+      for (let i = 1; i <= aggs.length; i++) {
+        document.getElementById(aggregationType + i).innerHTML = aggs[i-1];
+      }
+    }
+    if (update["eventType"] == "log") {
+      let message = update["message"];
+      let d = new Date().toISOString(); 
+      document.getElementById("logger").innerHTML += "[" + d + "] " + message + "\n"; 
+      document.getElementById("logger").scrollTop = document.getElementById("logger").scrollHeight 
+    }
+
+  }
+  function gotAverage(averages) {
+    for (var i = 0; i < averages.length; i++) {
+      document.getElementById("averageValue" + (i+1)).innerHTML = Math.round(averages[i] * 100) / 100;
+    }
+  }
+ 
+ function showMessage(message) {
+   console.log("Show message " + message);
+   var x = document.getElementById("snackbar");
+   x.innerHTML = message;
+   x.className = "show";
+   setTimeout(function(){ x.className = "" }, 5000);
+ }
+
+</script>
+</head>
+<body onload="init()">
+<div class="spoke-theme">
+  <h1 id="clientID">Passphrase</h1>
+  <span class="content" id="pass" hidden="">
+    <span id="passlabel">Passphrase:</span><input type="password" id="passphrase"></input>
+    <button  style="float: left;" onclick="GotPassphrase()">Submit</button>
+  </span>
+  <span class="content" id="main" hidden="">
+    <div class="section"><span>-</span>Registration</div> 
+    <div class="inner-wrap">
+      <span id="register_link"></span>
+      <span id="copy_link"></span>
+      <span id="show_qr"></span>
+      <span id="copy_pubkey"></span><br>
+      <button onclick="refreshRegistration()">Refresh</button>
+      <div id="qrcode"></div>
+    </div>
+    <div class="section"><span>-</span>Poll</div> 
+    <div class="inner-wrap">
+      <h1 id="poll_details_title"></h1>
+      <div id="poll_details_description"></div><br>
+      <table id="questionsTable">
+      <tr><th></th><th></th><th>Secret</th><th>Received</th><th>Sent</th><th>Encryption</th></tr>
+      </table>
+      <button style="float: left;" id="submitButton" onclick="initAggregation()">Submit My Answers!</button><br>
+      <br>
+      Status: <span id="status"></span><br>
+      <div id="timetopost"></div>
+    </div>
+  </span>
+</div>
+<div id="snackbar"></div>
+<textarea readonly id="logger" class="logger"></textarea>
+</body>

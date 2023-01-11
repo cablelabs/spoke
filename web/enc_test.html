@@ -1,0 +1,60 @@
+<html>
+<head>
+<title>Enc Test</title>
+<script type="text/javascript" src="js/pki.js"></script>
+<script type="text/javascript" src="js/spoke.js"></script>
+<script type="text/javascript" src="js/pass.js"></script>
+<script type="text/javascript">
+    var encUtils;
+    function init() {
+       encUtils = new EncryptUtils();
+       encUtils.init();
+    }
+    function createCert() {
+       encUtils.generateKey().then(data => keyDone(data));
+    }
+    function keyDone(key) {
+      console.log("Certificate Created");
+      document.getElementById("new_signed_data").innerHTML = key["publicKey"];
+      console.log("Private Key Created");
+      document.getElementById("pkcs8_key").innerHTML = key["privateKey"];
+    }
+    var jsonMessage;
+    function encDone(encryptedText) {
+      console.log("Encryption Completed");
+      document.getElementById("encrypted_content").innerHTML = encryptedText;
+    }
+    function decDone(decryptedText) {
+      console.log("Decryption Completed");
+      alert("Decrypted " + decryptedText); 
+    }
+    function encryptContent() {
+        let content = document.getElementById("content").value;
+        encUtils.encrypt(content).then(data => encDone(data));
+    }
+    function decryptContent() {
+        let encryptedContent = document.getElementById("encrypted_content").innerHTML;
+        encUtils.decrypt(encryptedContent).then(data => decDone(data));
+    }
+</script> 
+</head>
+<body onload="init()">
+<div id="pass" hidden="">
+Passphrase:<input type="password" id="passphrase"></input>
+<button onclick="GotPassphrase()">Submit</button>
+</div>
+<div id="main" hidden="">
+<button onclick="createCert()">Create Cert</button><br>
+<button onclick="encryptContent()">Encrypt</button>
+<button onclick="decryptContent()">Decrypt</button>
+<h1>Content</h1>
+<input type="text" id="content"></input>
+<div id="encrypted_content"></div>
+<div id="decrypted_content"></div>
+<h1>Cert</h1> 
+<div id="new_signed_data"></div>
+<h1>Key</h1> 
+<div id="pkcs8_key"></div>
+</div>
+</body>
+</html>

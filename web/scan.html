@@ -1,0 +1,23 @@
+<html>
+<head>
+<title>SPoKE Scan</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="css/spoke.css">
+<script type="text/javascript" src="js/html5-qrcode.min.js"></script>
+<script type="text/javascript">
+  function init() {
+    var html5QrcodeScanner = new Html5QrcodeScanner(
+	"reader", { fps: 10, qrbox: 250 });
+    html5QrcodeScanner.render(onScanSuccess);
+  }
+
+  function onScanSuccess(decodedText, decodedResult) {
+    // Handle on success condition with the decoded text or result.
+    console.log(`Scan result: ${decodedText}`, decodedResult);
+    window.location.replace(decodedText);
+  }
+</script>
+</head>
+<body onload="init()">
+  <div style="width: 500px" id="reader"></div>
+</body>
