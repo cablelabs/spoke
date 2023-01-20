@@ -75,7 +75,7 @@ Note that the public and private key pair is specific to a browser
 as well as the domain of the service. So if you expose the service on
 a different ngrok URL a new key pair is generated. The first time
 a key pair is generated any passphrase may be picked. The same
-passhrase must then be used subsequent times to unlock the key.
+passphrase must then be used subsequent times to unlock the key.
 
 Like with the general SAFE mechanism the SPOKE mechanism
 assumes that the participants before and after you on the
@@ -83,7 +83,7 @@ chain do not collude. The identities of the participants
 only have to be known to the poll creator.
 There is some trust on the poll creator not to insert
 sniffing devices in the chain. This can be avoided by sharing
-paricipant public keys and identities across the whole
+participant public keys and identities across the whole
 polling group. Note that if you ask a question and you
 know all the participants' answers except one, this mechanism
 will also reveal the answer of the last unknown participant.

@@ -130,9 +130,9 @@
     cell.innerHTML = "<span id=\"poll_details_question" + idx + "\">" + question["question"] + "</span>";
     cell = row.insertCell(1);
     if (question["datatype"] == "float") {
-       cell.innerHTML = "<input id=\"inputValue" + idx + "\" step=\"0.01\" type=\"number\"></input>" 
+       cell.innerHTML = "<input id=\"inputValue" + idx + "\" step=\"0.01\" type=\"number\" value=\"0.0\"></input>" 
     } else if (question["datatype"] == "int") {
-       cell.innerHTML = "<input id=\"inputValue" + idx + "\" step=\"1\" type=\"number\"></input>" 
+       cell.innerHTML = "<input id=\"inputValue" + idx + "\" step=\"1\" type=\"number\" value=\"0\"></input>" 
     } else if (question["datatype"] == "boolean") {
        cell.innerHTML = "<select id=\"inputValue" + idx + "\"><option value=\"1\">Yes</option><option value=\"0\">No</option></select>" 
     } else if (question["datatype"] == "likert") {

@@ -139,7 +139,7 @@ class Spoke {
     }
   }
   getRandom() {
-    return Math.floor(Math.random() * 10000);
+    return Math.floor(Math.random() * 100000000)/10000;
   }
 
   getInitialAgg() {
@@ -248,7 +248,7 @@ class Spoke {
     var aggString = "";
     var sep = "";
     for (var i = 0; i < vals.length; i++) {
-      aggString += sep + (Number(aggs[i]) + vals[i]);
+      aggString += sep + (Number(aggs[i]) + vals[i]).toFixed(4);
       sep = " ";
     }
     let to_index = this.nextIndex();
