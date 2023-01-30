@@ -209,6 +209,7 @@
   var spoke;
   var hasInitiated  = false;
   function init() {
+    initAnswerLoad();
     var pubkey = localStorage.getItem("spokePublicKey");
     if (pubkey == null) {
       document.getElementById("passlabel").innerHTML = "Set new Passphrase:";
@@ -309,6 +310,39 @@
    setTimeout(function(){ x.className = "" }, 5000);
  }
 
+  function initAnswerLoad() {
+    if (window.File && window.FileReader && window.FileList && window.Blob) {
+    var fileSelected = document.getElementById('inputfile');
+    fileSelected.addEventListener('change', function (e) {
+         //Set the extension for the file
+         var fileExtension = /text.*/;
+         //Get the file object
+         var fileTobeRead = fileSelected.files[0];
+        //Check of the extension match
+         if (fileTobeRead.type.match(fileExtension)) {
+             //Initialize the FileReader object to read the 2file
+             var fileReader = new FileReader();
+             fileReader.onload = function (e) {
+                 var fileContents = document.getElementById('filecontents');
+                 var answers = fileReader.result.split(",");
+		 for (i=1; i <= answers.length; i++) {
+                   var el = document.getElementById("inputValue" + i);
+                   el.value = Number(answers[i-1]);
+		 }
+             }
+             fileReader.readAsText(fileTobeRead);
+         }
+         else {
+             alert("Please select text file");
+         }
+
+    }, false);
+ }
+ else {
+     alert("Files are not supported");
+ }
+ };
+
 </script>
 </head>
 <body onload="init()">
@@ -332,6 +366,8 @@
     <div class="inner-wrap">
       <h1 id="poll_details_title"></h1>
       <div id="poll_details_description"></div><br>
+      <input type="button" id="loadAnswerButton" value="Load Answers" onclick="document.getElementById('inputfile').click();" />
+      <input type="file" style="display:none;" id="inputfile" name="file"/>
       <table id="questionsTable">
       <tr><th></th><th></th><th>Secret</th><th>Received</th><th>Sent</th><th>Encryption</th></tr>
       </table>
