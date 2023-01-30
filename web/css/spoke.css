@@ -129,3 +129,6 @@
 .online {
 	font-weight: bold; 
 }
+.pending {
+	font-style: italic;
+}

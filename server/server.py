@@ -112,7 +112,10 @@ def register():
 @app.route('/status',methods=['POST'])
 def status():
   data = request.get_json(force=True)
-  result = controller.get_status(data["node"],data["group"])
+  isPending = False
+  if "pending" in data:
+    isPending = data["pending"]
+  result = controller.get_status(data["node"],data["group"],isPending)
   return json.dumps(result)
 
 @app.route('/post_aggregate',methods=['POST'])

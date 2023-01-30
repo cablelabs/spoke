@@ -14,6 +14,7 @@ class Spoke {
     this.enc = new EncryptUtils();
     this.currentAgg = "";
     this.currentTarget = 0;
+    this.isPending = false;
   }
 
   initEncryption() {
@@ -58,7 +59,7 @@ class Spoke {
   }
 
   getStatus() {
-    let payload = {"group": this.group, "node": this.index};
+    let payload = {"group": this.group, "node": this.index, "pending": this.isPending && !this.isInitiator()};
     return fetch('/status',{method: 'POST',body: JSON.stringify(payload)})
             .then(response => response.json());
   }
@@ -192,6 +193,7 @@ class Spoke {
       return;
     }
     var agg = await this.decrypt(data["aggregate"]);
+    this.isPending = false;
     this.log("Received final aggregate and computing and posting averages");
     console.log("Received decrypted payload " + agg);
     var aggs = agg.split(" ");
@@ -226,6 +228,7 @@ class Spoke {
     var payload = {"node": this.index,
                    "group": this.group};
     this.log("Waiting for aggregate");
+    this.isPending = true;
     fetch('/get_aggregate',{method: 'POST',body: JSON.stringify(payload)})
             .then(response => response.json())
             .then(data => callback(data));
@@ -241,6 +244,7 @@ class Spoke {
       this.waitForAggregate(this.processAggregate.bind(this));
       return;
     } 
+    this.isPending = false;
     var vals = this.aggregationValues;
     var agg = await this.decrypt(data["aggregate"]);
     var aggs = agg.split(" ");

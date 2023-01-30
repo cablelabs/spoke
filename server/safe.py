@@ -39,6 +39,7 @@ class Controller:
     self.lock = threading.Semaphore()
     self.status = {}
     self.seen = {}
+    self.pending = {}
 
   def get_avg(self):
     avg = {}
@@ -58,15 +59,19 @@ class Controller:
   def update_failed_status(self, node, group):
     self.status[group]["failed"][node] = time.time()
 
-  def get_status(self, node, group):
+  def get_status(self, node, group, isPending):
     if not group in self.seen:
        self.seen[group] = {}
+    if not group in self.pending:
+       self.pending[group] = {}
     if node != -1:
       self.seen[group][node] =  time.time()
+      self.pending[group][node] =  isPending
     result = {}
     if group in self.status:
       result = self.status[group]
     result["last_seen"] = self.seen[group]
+    result["pending"] = self.pending[group]
     return result
 
   def init_average(self, group, initiator=1, repost=False):

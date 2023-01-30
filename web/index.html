@@ -203,6 +203,7 @@
   }
 
   function handleStatus(data) {
+       console.log(data);
        let total = Object.keys(registrations).length;
        for (var i = 1; i <= total; i++) {
           let nick = window.localStorage.getItem(registrations[i]["pub_key"]);
@@ -217,6 +218,12 @@
                 && (("" + i) in data["last_seen"])
                 && ((new Date().getTime()/1000 - data["last_seen"][i]) < 10)) {
             is_online = true;
+          }
+          is_pending = false;
+          if ("pending" in data 
+                && (("" + i) in data["pending"])
+                && data["pending"][i]) {
+            is_pending = true;
           }
 
 
@@ -233,6 +240,12 @@
             document.getElementById("reg" + i).classList.add("online");
           } else {
             document.getElementById("reg" + i).classList.remove("online");
+          }
+
+          if (is_pending) {
+            document.getElementById("reg" + i).classList.add("pending");
+          } else {
+            document.getElementById("reg" + i).classList.remove("pending");
           }
        }
   }
