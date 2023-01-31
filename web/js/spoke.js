@@ -256,6 +256,11 @@ class Spoke {
       sep = " ";
     }
     let to_index = this.nextIndex();
+    var posted = data["posted"];
+    if (to_index == 1 && posted < 3) {
+      this.log("Not enough participants, stopping aggregation");
+      return;
+    }
     this.log("Received aggregate and reposting encryted with PK" + to_index);
     console.log("Posting new payload " + aggString);
     if (this.statusCallback != null) {
@@ -305,6 +310,11 @@ class Spoke {
        let repost_to = ((data["repost_to"]-1) % this.registrations)+1;
        console.log("Got repost to " + repost_to);
        this.log("Instructed to repost and re-encrypt with PK" + repost_to);
+       var posted = data["posted"];
+       if (repost_to == 1 && posted < 3) {
+         this.log("Not enough participants, stopping aggregation");
+	 return {};
+       }
 
        if (this.statusCallback != null) {
          this.statusCallback({"eventType":"aggregation",
