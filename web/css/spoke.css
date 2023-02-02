@@ -132,3 +132,7 @@
 .pending {
 	font-style: italic;
 }
+.average {
+	background-color: #2A88AD;
+	color: #FFF;
+}
