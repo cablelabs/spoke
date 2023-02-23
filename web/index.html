@@ -173,9 +173,18 @@
         return;
      }
      spoke = new Spoke(poll_id); 
-     let pubKey = spoke.decodeKey(token);
-     window.localStorage.setItem(pubKey,alias);
-     spoke.register(pubKey).then(index => handleRegistrationComplete(index));
+     try {
+       let pubKey = spoke.decodeKey(token);
+       if (!pubKey.startsWith('-----BEGIN CERTIFICATE-----')) {
+         alert("Invalid key format");
+	 return;
+       }
+       window.localStorage.setItem(pubKey,alias);
+       spoke.register(pubKey).then(index => handleRegistrationComplete(index));
+     } catch (error) {
+       console.error(error);
+       alert("Invalid key format");
+     }
   }
 
   function updateStatus() {
