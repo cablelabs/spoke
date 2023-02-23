@@ -416,6 +416,7 @@ class EncryptUtils {
      window.PassEncryptionCompleted = this.passEncryptDone.bind(this);
      window.PassDecryptionCompleted = this.passDecryptDone.bind(this);
      window.GotPassphrase = this.gotPassphrase.bind(this);
+     window.ClearKey = this.clearKey.bind(this);
      this.publicKey = null;
      this.privateKey = null;
      this.keyCallback = null;
@@ -456,6 +457,11 @@ class EncryptUtils {
        this.passphraseCallback = completed;
        getPassphrase();
      });
+  }
+  clearKey() {
+    localStorage.removeItem("spokePrivateKey");
+    localStorage.removeItem("spokePublicKey");
+    window.location.reload();
   }
   gotPassphrase() {
     let pass = document.getElementById("passphrase").value;
