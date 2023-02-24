@@ -78,7 +78,7 @@ class Spoke {
                    "group": this.group};
     fetch('/register',{method: 'POST',body: JSON.stringify(payload)})
             .then(response => response.json())
-            .then(data => this.handleRegistration(data));
+            .then(data => this.handleRegister(data));
     return new Promise((completed) => {this.registrationCallback = completed});
 
   }
@@ -90,6 +90,13 @@ class Spoke {
             .then(response => response.json())
             .then(data => this.handleRegistration(data));
     return new Promise((completed) => {this.registrationCallback = completed});
+  }
+
+  handleRegister(data) {
+    console.log("Got index " + this.index); 
+    if (this.registrationCallback != null) {
+      this.registrationCallback(this.index);
+    }
   }
 
   handleRegistration(data) {
